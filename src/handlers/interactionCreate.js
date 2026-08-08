@@ -5,8 +5,8 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ChannelType
 } = require('discord.js');
-const { ChannelType } = require('discord.js');
 const config = require('../config');
 const { formatGold } = require('../utils/formatGold');
 const partyService = require('../services/partyService');
@@ -668,8 +668,8 @@ async function finalizeParty(interaction, run) {
   const thread = await salaryChannel.threads.create({
     name: run.title,
     type: ChannelType.PrivateThread,
-    autoArchiveDuration: 10080, // 7 hari
-    invitable: false, // cuma host/mod yang bisa nambahin orang lain ke thread, member biasa gak bisa invite sembarangan
+    autoArchiveDuration: 10080,
+    invitable: false,
     reason: `Salary thread untuk party run #${run.id}`,
   });
 
@@ -677,16 +677,17 @@ async function finalizeParty(interaction, run) {
 
   const members = await resolveDisplayNames(interaction.guild, partyService.getActiveMembers(run.id));
 
-  // Tambahin semua member party + host (jaga-jaga kalau host gak ambil role manapun)
   const memberIds = new Set(members.map((m) => m.user_id));
   memberIds.add(run.host_id);
-  for (const userId of memberIds) {
-    try {
-      await thread.members.add(userId);
-    } catch (err) {
-      console.warn(`[finalizeParty] Gagal nambahin ${userId} ke thread:`, err.message);
-    }
-  }
+
+  // Tambahin semua member SEKALIGUS (paralel), bukan satu-satu berurutan
+  await Promise.all(
+    [...memberIds].map((userId) =>
+      thread.members.add(userId).catch((err) =>
+        console.warn(`[finalizeParty] Gagal nambahin ${userId} ke thread:`, err.message)
+      )
+    )
+  );
 
   const { embed, components } = salaryService.computeSalaryView(partyService.getRun(run.id), members);
   const panelMessage = await thread.send({ embeds: [embed], components });
@@ -707,4 +708,7 @@ async function finalizeParty(interaction, run) {
   } catch (err) {
     console.warn('[finalizeParty] Gagal hapus pesan party lama:', err.message);
   }
+
+  // INI YANG KELUPAAN KEMARIN — nutup status "thinking" host
+  await interaction.editReply({ content: `✅ Party selesai! Salary thread: ${thread.url}` });
 }
