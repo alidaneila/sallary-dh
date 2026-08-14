@@ -1,4 +1,7 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { 
+  SlashCommandBuilder,
+  MessageFlags,
+} = require('discord.js');
 const db = require('../database/db');
 const config = require('../config');
 
@@ -44,7 +47,7 @@ module.exports = {
     if (config.itemAdminUserId && interaction.user.id !== config.itemAdminUserId) {
       await interaction.reply({
         content: '⛔ Kamu tidak punya izin untuk menambah item ke catalog.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -61,7 +64,7 @@ module.exports = {
 
     await interaction.reply({
       content: `✅ Item ditambahkan: **${itemName}** (${category}${klass ? ` · ${klass}` : ''} · ${stampCost} stamp)`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };
